@@ -1,0 +1,78 @@
+name:                PlayApproximateCurve
+version:             0.1.0.0
+github:              "falgon/PlayApproximateCurve"
+license:             BSD3
+author:              "roki"
+maintainer:          "falgon53@yahoo.co.jp"
+copyright:           "Copyright (C) 2018 roki"
+
+extra-source-files:
+- README.md
+- ChangeLog.md
+
+# Metadata used when publishing your package
+# synopsis:            Short description of your package
+# category:            Web
+
+# To avoid duplicated efforts in documentation and dealing with the
+# complications of embedding Haddock markup inside cabal files, it is
+# common to point users to the README.md file.
+description:         Please see the README on GitHub at <https://github.com/falgon/PlayApproximateCurve#readme>
+
+dependencies:
+- base >= 4.7 && < 5
+- extra
+- Chart
+- Chart-diagrams
+- Chart-cairo
+- MissingH
+- paths
+- filepath
+- directory
+
+library:
+  source-dirs: src
+
+executables:
+  lineqByRecursion-exe:
+    main:                lineqByRecursion/Main.hs
+    source-dirs:         app
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    - -O2
+    dependencies:
+    - PlayApproximateCurve
+  lineqByPseudo-exe:
+    main:                lineqByPseudo/Main.hs
+    source-dirs:         app
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    - -O2
+    dependencies:
+    - PlayApproximateCurve
+  mkAnim-exe:
+    main:                mkAnim/Main.hs
+    source-dirs:         app
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    - -O2
+    dependencies:
+    - PlayApproximateCurve
+    - process
+
+tests:
+  PlayApproximateCurve-test:
+    main:                Spec.hs
+    source-dirs:         test
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - PlayApproximateCurve
