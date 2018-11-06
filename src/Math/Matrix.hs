@@ -1,24 +1,26 @@
 {-# OPTIONS_GHC -Wall #-}
 module Math.Matrix (
     Matrix,
-    gaussianElim,
     resolveLinearEq,
     determinant,
+    madd,
     mmul,
     inv,
-    pinv,
+    leastSquarePinv,
+    leastSquarePinvRegular,
     transpose
 ) where
 
-import Data.Bool (bool)
-import Data.Maybe (maybe, fromJust)
-import Data.List (transpose)
+import Data.Maybe (fromJust)
+import Data.List (transpose, unfoldr)
 import Data.Tuple.Extra (first, second, dupe)
 
 type Matrix a = [[a]]
 
 swapElems :: Int -> Int -> [a] -> [a]
-swapElems i j xs | i > j = swapElems j i xs | otherwise = take i xs ++ [xs !! j] ++ take (j - i - 1) (drop (i + 1) xs) ++ [xs !! i] ++ drop (j + 1) xs
+swapElems i j xs 
+    | i > j = swapElems j i xs 
+    | otherwise = take i xs ++ [xs !! j] ++ take (j - i - 1) (drop (i + 1) xs) ++ [xs !! i] ++ drop (j + 1) xs
 
 setMaxAbs :: (Num a, Ord a) => Int -> [[a]] -> [[a]]
 setMaxAbs i = uncurry (++) . first (take i) . second (setMaxAbs' i . drop i) . dupe
@@ -27,19 +29,30 @@ setMaxAbs i = uncurry (++) . first (take i) . second (setMaxAbs' i . drop i) . d
             | succ ii < length row = setMaxAbs' (succ ii) $ if abs ((row !! ii) !! ii) < abs ((row !! succ ii) !! ii) then swapElems ii (succ ii) row else row
             | otherwise = row
 
-forward :: (Fractional a, Ord a) => [[a]] -> [[a]]
-forward = forward' 0
+forward :: (Ord a, Fractional a, Real a) => [[a]] -> Maybe [[Rational]]
+forward = forward' 0 . map (map toRational)
     where
-        forward' n xs | length xs - 1 > n = forward' (succ n) $ toZero n $ setMaxAbs n xs | otherwise = xs
-        toZero i xs = take (i + 1) xs ++ [let c = (r !! i) / (ur !! i) in zipWith ((+) . negate . (*c)) ur r | r <- drop (i + 1) xs]
-            where
-                ur = xs !! i
+        forward' n xs
+            | length xs - 1 > n = maybe Nothing (forward' (succ n)) $ toZero n (setMaxAbs n xs)
+            | otherwise = Just xs
+        toZero i xs 
+            | ((xs !! i) !! i) == 0 = Nothing
+            | otherwise = Just $ take (succ i) xs ++ [let ur = xs !! i; c = (r !! i) / (ur !! i) in zipWith ((+) . negate . (*c)) ur r | r <- drop (i + 1) xs]
 
-backward :: (Fractional a, Ord a) => [[a]] -> [[a]]
+backward :: Fractional a => [[Rational]] -> Maybe [[a]]
 backward = uncurry backward' . first ((+(-1)) . length) . dupe
     where
-        backward' n xs | n >= 0 = backward' (pred n) $ toZero n xs | otherwise = xs
-        toZero i xs = [let ur = xs !! i; c = (r !! i) / (ur !! i) in zipWith ((+) . negate . (*c)) ur r | r <- take i xs] ++ drop i xs
+        backward' n xs
+            | n >= 0 = maybe Nothing (backward' (pred n)) $ toZero n xs
+            | otherwise = Just $ map (map fromRational) xs
+        toZero i xs 
+            | ((xs !! i) !! i) == 0 = Nothing
+            | otherwise = Just $ [let ur = xs !! i; c = (r !! i) / (ur !! i) in zipWith ((+) . negate . (*c)) ur r | r <- take i xs] ++ drop i xs
+
+gaussianElim :: (Ord a, Fractional a, Real a) => [[a]] -> Maybe [[a]]
+gaussianElim m
+    | (length m > 1) && all ((>= length m) . length) m = maybe Nothing backward $ forward m
+    | otherwise = Nothing
 
 cofactorExpand :: Num a => Int -> [[a]] -> a
 cofactorExpand _ [[x]] = x
@@ -49,26 +62,38 @@ cofactorExpand i m = expand i m
         expand ii mx = sum $ (\(e, j) -> (-1)^(ii+j) * e * cofactorExpand (succ ii) (takeCofactor j mx)) <$> zip (head mx) (take (length mx) (iterate (+1) 0))
         takeCofactor j mx = (uncurry (++) . first (take j) . second (drop (j + 1)) . dupe) <$> drop 1 mx
 
-mmul :: (Num a) => [[a]] -> [[a]] -> [[a]]
+madd :: Num a => [[a]] -> [[a]] -> [[a]]
+madd = zipWith (zipWith (+))
+
+mmul :: Num a => [[a]] -> [[a]] -> [[a]]
 mmul lm rm = [[sum $ zipWith (*) l r | r <- transpose rm] | l <- lm]
 
-gaussianElim :: (Fractional a, Ord a) => [[a]] -> Maybe [[a]]
-gaussianElim m | (length m > 1) && all ((>= length m) . length) m = Just $ backward $ forward m | otherwise = Nothing
-
-resolveLinearEq :: (Fractional a, Ord a) => [[a]] -> [a] -> Maybe [a]
+resolveLinearEq :: (Ord a, Fractional a, Real a) => [[a]] -> [a] -> Maybe [a]
 resolveLinearEq = (.) (fmap (map (uncurry (/) . first last . second (sum . init) . dupe))) . (.) gaussianElim . zipWith (flip (.) (:[]) . (++))
 
 determinant :: Num a => [[a]] -> Maybe a
 determinant m | all ((== length m) . length) m = Just $ cofactorExpand 1 m | otherwise = Nothing
+ 
+idm :: Fractional a => Int -> [[a]]
+idm n = let xs = [1 .. n] in [fromIntegral . fromEnum . (x==) <$> xs | x <- xs]
 
-inv :: (Fractional a, Ord a) => [[a]] -> Maybe [[a]]
-inv m = ($ determinant m) $ maybe Nothing $ \d -> if d == 0 then Nothing else
-    flip fmap (gaussianElim $ zipWith (++) m $ idm $ length m) $ \gs -> [let half = length (head gs) `div` 2 in (/(sum $ take half g)) <$> drop half g | g <- gs]
+inv :: (Ord a, Fractional a, Real a) => [[a]] -> Maybe [[a]]
+inv m | all ((== length m) . length) m = ($ ls) $ fmap $ flip (zipWith (map . flip (/))) $ fromJust rs | otherwise = Nothing
     where
-        idm n = let xs = [1 .. n] in [fromIntegral . fromEnum . (x==) <$> xs | x <- xs]
+        ge = gaussianElim $ zipWith (++) m $ idm $ length m
+        ls = unfoldr (\(i, xs) -> if length xs > i then Just ((xs !! i) !! i, (succ i, xs)) else Nothing) . (,) 0 <$> ge
+        rs = map (drop (length (fromJust ge))) <$> ge
 
-pinv :: (Fractional a, Ord a) => [[a]] -> [[a]]
-pinv [] = []
-pinv m = ($ determinant m) $ maybe pinv' $ bool pinv' (fromJust $ inv m) . (/=0)
-    where
-        pinv' = if length (head m) < length m then fromJust (inv (transpose m `mmul` m)) `mmul` transpose m else transpose m `mmul` fromJust (inv (m `mmul` transpose m))
+leastSquarePinv :: (Ord a, Fractional a, Real a) => [[a]] -> Maybe [[a]]
+leastSquarePinv [] = Nothing
+leastSquarePinv m 
+    | all ((== length m) . length) m = inv m
+    | length (head m) < length m = ($ inv (transpose m `mmul` m)) $ fmap (`mmul` transpose m)
+    | otherwise = Nothing
+
+leastSquarePinvRegular :: (Ord a, Fractional a, Real a) => a -> [[a]] -> Maybe [[a]]
+leastSquarePinvRegular _ [] = Nothing
+leastSquarePinvRegular l m
+    | all ((== length m) . length) m = inv m
+    | length (head m) < length m = ($ inv $ map (map (*l)) (idm (length m)) `madd` (transpose m `mmul` m)) $ fmap (`mmul` transpose m)
+    | otherwise = Nothing

@@ -3,4 +3,5 @@ PlayApproximateCurve.cabal
 *~
 *.png
 *.dta
+*.gif
 .DS_Store

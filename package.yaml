@@ -29,6 +29,9 @@ dependencies:
 - paths
 - filepath
 - directory
+- random
+- normaldistribution
+- process
 
 library:
   source-dirs: src
@@ -54,8 +57,18 @@ executables:
     - -O2
     dependencies:
     - PlayApproximateCurve
-  mkAnim-exe:
-    main:                mkAnim/Main.hs
+  lineqRegular-exe:
+    main:                lineqRegular/Main.hs
+    source-dirs:         app
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    - -O2
+    dependencies:
+    - PlayApproximateCurve
+  mkAnimFromDta-exe:
+    main:                mkAnimFromDta/Main.hs
     source-dirs:         app
     ghc-options:
     - -threaded
@@ -65,14 +78,30 @@ executables:
     dependencies:
     - PlayApproximateCurve
     - process
+  mkAnimFromSamples-exe:
+    main:                mkAnimFromSamples/Main.hs
+    source-dirs:         app
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    - -O2
+    dependencies:
+    - PlayApproximateCurve
 
 tests:
   PlayApproximateCurve-test:
     main:                Spec.hs
     source-dirs:         test
     ghc-options:
+    - -Wall
+    - -O2
     - -threaded
     - -rtsopts
     - -with-rtsopts=-N
     dependencies:
     - PlayApproximateCurve
+    - matrix
+    - HUnit
+    - random
+    - linear

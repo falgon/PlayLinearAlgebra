@@ -43,6 +43,7 @@ extra-deps:
 - Chart-diagrams-1.9@sha256:cdd0c22d730e507f9644e690833096ee127302b5ff5e1571f6def419160a2642
 - SVGFonts-1.6.0.3
 - paths-0.2.0.0@sha256:85e77985968860365cdb2074515b339863344ca0d28baa879baf4105f93e87cc
+- normaldistribution-1.1.0.3@sha256:2615b784c4112cbf6ffa0e2b55b76790290a9b9dff18a05d8c89aa374b213477
 
 # Override default flag values for local packages and extra-deps
 # flags: {}
