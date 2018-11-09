@@ -29,8 +29,8 @@ setMaxAbs i = uncurry (++) . first (take i) . second (setMaxAbs' i . drop i) . d
             | succ ii < length row = setMaxAbs' (succ ii) $ if abs ((row !! ii) !! ii) < abs ((row !! succ ii) !! ii) then swapElems ii (succ ii) row else row
             | otherwise = row
 
-forward :: (Ord a, Fractional a, Real a) => [[a]] -> Maybe [[Rational]]
-forward = forward' 0 . map (map toRational)
+forward :: [[Rational]] -> Maybe [[Rational]]
+forward = forward' 0
     where
         forward' n xs
             | length xs - 1 > n = maybe Nothing (forward' (succ n)) $ toZero n (setMaxAbs n xs)
@@ -39,17 +39,17 @@ forward = forward' 0 . map (map toRational)
             | ((xs !! i) !! i) == 0 = Nothing
             | otherwise = Just $ take (succ i) xs ++ [let ur = xs !! i; c = (r !! i) / (ur !! i) in zipWith ((+) . negate . (*c)) ur r | r <- drop (i + 1) xs]
 
-backward :: Fractional a => [[Rational]] -> Maybe [[a]]
+backward :: [[Rational]] -> Maybe [[Rational]]
 backward = uncurry backward' . first ((+(-1)) . length) . dupe
     where
         backward' n xs
             | n >= 0 = maybe Nothing (backward' (pred n)) $ toZero n xs
-            | otherwise = Just $ map (map fromRational) xs
+            | otherwise = Just xs
         toZero i xs 
             | ((xs !! i) !! i) == 0 = Nothing
             | otherwise = Just $ [let ur = xs !! i; c = (r !! i) / (ur !! i) in zipWith ((+) . negate . (*c)) ur r | r <- take i xs] ++ drop i xs
 
-gaussianElim :: (Ord a, Fractional a, Real a) => [[a]] -> Maybe [[a]]
+gaussianElim :: [[Rational]] -> Maybe [[Rational]]
 gaussianElim m
     | (length m > 1) && all ((>= length m) . length) m = maybe Nothing backward $ forward m
     | otherwise = Nothing
@@ -62,38 +62,38 @@ cofactorExpand i m = expand i m
         expand ii mx = sum $ (\(e, j) -> (-1)^(ii+j) * e * cofactorExpand (succ ii) (takeCofactor j mx)) <$> zip (head mx) (take (length mx) (iterate (+1) 0))
         takeCofactor j mx = (uncurry (++) . first (take j) . second (drop (j + 1)) . dupe) <$> drop 1 mx
 
-madd :: Num a => [[a]] -> [[a]] -> [[a]]
+madd :: [[Rational]] -> [[Rational]] -> [[Rational]]
 madd = zipWith (zipWith (+))
 
-mmul :: Num a => [[a]] -> [[a]] -> [[a]]
+mmul :: [[Rational]] -> [[Rational]] -> [[Rational]]
 mmul lm rm = [[sum $ zipWith (*) l r | r <- transpose rm] | l <- lm]
 
-resolveLinearEq :: (Ord a, Fractional a, Real a) => [[a]] -> [a] -> Maybe [a]
+resolveLinearEq :: [[Rational]] -> [Rational] -> Maybe [Rational]
 resolveLinearEq = (.) (fmap (map (uncurry (/) . first last . second (sum . init) . dupe))) . (.) gaussianElim . zipWith (flip (.) (:[]) . (++))
 
 determinant :: Num a => [[a]] -> Maybe a
 determinant m | all ((== length m) . length) m = Just $ cofactorExpand 1 m | otherwise = Nothing
  
-idm :: Fractional a => Int -> [[a]]
+idm :: Int -> [[Rational]]
 idm n = let xs = [1 .. n] in [fromIntegral . fromEnum . (x==) <$> xs | x <- xs]
 
-inv :: (Ord a, Fractional a, Real a) => [[a]] -> Maybe [[a]]
+inv :: [[Rational]] -> Maybe [[Rational]]
 inv m | all ((== length m) . length) m = ($ ls) $ fmap $ flip (zipWith (map . flip (/))) $ fromJust rs | otherwise = Nothing
     where
         ge = gaussianElim $ zipWith (++) m $ idm $ length m
         ls = unfoldr (\(i, xs) -> if length xs > i then Just ((xs !! i) !! i, (succ i, xs)) else Nothing) . (,) 0 <$> ge
         rs = map (drop (length (fromJust ge))) <$> ge
 
-leastSquarePinv :: (Ord a, Fractional a, Real a) => [[a]] -> Maybe [[a]]
+leastSquarePinv :: [[Rational]] -> Maybe [[Rational]]
 leastSquarePinv [] = Nothing
 leastSquarePinv m 
     | all ((== length m) . length) m = inv m
-    | length (head m) < length m = ($ inv (transpose m `mmul` m)) $ fmap (`mmul` transpose m)
+    | length (head m) < length m = (`mmul` transpose m) <$> inv (transpose m `mmul` m)
+    | length (head m) > length m = (transpose m `mmul`) <$> inv (m `mmul` transpose m)
     | otherwise = Nothing
 
-leastSquarePinvRegular :: (Ord a, Fractional a, Real a) => a -> [[a]] -> Maybe [[a]]
+leastSquarePinvRegular :: (Fractional a, Real a) => a -> [(a, a)] -> Maybe [[Rational]]
 leastSquarePinvRegular _ [] = Nothing
-leastSquarePinvRegular l m
-    | all ((== length m) . length) m = inv m
-    | length (head m) < length m = ($ inv $ map (map (*l)) (idm (length m)) `madd` (transpose m `mmul` m)) $ fmap (`mmul` transpose m)
-    | otherwise = Nothing
+leastSquarePinvRegular l m = fmap (`mmul` transpose m') $ inv $ map (map (*(toRational l))) (idm (length m')) `madd` (transpose m' `mmul` m')
+    where
+        m' = map (++[1]) $ transpose $ unfoldr (\i -> if i /= 0 then Just (toRational . (^^i) . fst <$> m, pred i) else Nothing) $ length m - 1
