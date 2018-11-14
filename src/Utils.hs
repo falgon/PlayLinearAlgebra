@@ -79,3 +79,4 @@ mkFrames fn cv pt dst n = bracket (createDirectoryIfMiss tmpdir) removeDirIfExis
     fs <- fmap (sortBy (\x y -> compare (s2i (filter isDigit x)) (s2i (filter isDigit y)))) . listDirectory =<< absolutize d
     if null fs then putStrLn "Failed to generate." >> exitFailure else
         mapM (absolutize . (++) (tmpdir ++ "/")) fs >>= void . flip (readProcess cv) [] . (++) ["-delay", "70"] . flip (++) [dst]
+

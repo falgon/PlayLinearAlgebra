@@ -37,7 +37,7 @@ library:
   source-dirs: src
 
 executables:
-  lineqByRecursion-exe:
+  lineqByRecursion:
     main:                lineqByRecursion/Main.hs
     source-dirs:         app
     ghc-options:
@@ -47,7 +47,7 @@ executables:
     - -O2
     dependencies:
     - PlayApproximateCurve
-  lineqByPseudo-exe:
+  lineqByPseudo:
     main:                lineqByPseudo/Main.hs
     source-dirs:         app
     ghc-options:
@@ -57,7 +57,7 @@ executables:
     - -O2
     dependencies:
     - PlayApproximateCurve
-  lineqRegular-exe:
+  lineqRegular:
     main:                lineqRegular/Main.hs
     source-dirs:         app
     ghc-options:
@@ -67,7 +67,7 @@ executables:
     - -O2
     dependencies:
     - PlayApproximateCurve
-  mkAnimFromDta-exe:
+  mkAnimFromDta:
     main:                mkAnimFromDta/Main.hs
     source-dirs:         app
     ghc-options:
@@ -78,7 +78,7 @@ executables:
     dependencies:
     - PlayApproximateCurve
     - process
-  mkAnimFromSamples-exe:
+  mkAnimFromSamples:
     main:                mkAnimFromSamples/Main.hs
     source-dirs:         app
     ghc-options:

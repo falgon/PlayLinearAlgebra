@@ -5,7 +5,7 @@ import Data.Maybe (maybe)
 import System.Exit (exitFailure)
 import System.Environment (getArgs)
 
-import Math.Approx.LEM.ByPseudoInv (linearEqs)
+import ML.Approx.OLS.ByPinv (linearEqs)
 import System.IO.Dta
 import System.IO.Directory
 import Utils

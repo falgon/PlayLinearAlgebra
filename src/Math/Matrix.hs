@@ -1,4 +1,5 @@
 {-# OPTIONS_GHC -Wall #-}
+{-# LANGUAGE CPP #-}
 module Math.Matrix (
     Matrix,
     resolveLinearEq,
@@ -6,14 +7,21 @@ module Math.Matrix (
     madd,
     mmul,
     inv,
-    leastSquarePinv,
-    leastSquarePinvRegular,
+    pinv,
+    l2Reg,
     transpose
 ) where
 
 import Data.Maybe (fromJust)
 import Data.List (transpose, unfoldr)
 import Data.Tuple.Extra (first, second, dupe)
+
+#ifdef __GLASGOW_HASKELL__
+{-# INLINE swapElems #-}
+{-# INLINE madd #-}
+{-# INLINE mmul #-}
+{-# INLINE idm #-}
+#endif
 
 type Matrix a = [[a]]
 
@@ -73,7 +81,7 @@ resolveLinearEq = (.) (fmap (map (uncurry (/) . first last . second (sum . init)
 
 determinant :: Num a => [[a]] -> Maybe a
 determinant m | all ((== length m) . length) m = Just $ cofactorExpand 1 m | otherwise = Nothing
- 
+
 idm :: Int -> [[Rational]]
 idm n = let xs = [1 .. n] in [fromIntegral . fromEnum . (x==) <$> xs | x <- xs]
 
@@ -84,16 +92,16 @@ inv m | all ((== length m) . length) m = ($ ls) $ fmap $ flip (zipWith (map . fl
         ls = unfoldr (\(i, xs) -> if length xs > i then Just ((xs !! i) !! i, (succ i, xs)) else Nothing) . (,) 0 <$> ge
         rs = map (drop (length (fromJust ge))) <$> ge
 
-leastSquarePinv :: [[Rational]] -> Maybe [[Rational]]
-leastSquarePinv [] = Nothing
-leastSquarePinv m 
+pinv :: [[Rational]] -> Maybe [[Rational]]
+pinv [] = Nothing
+pinv m 
     | all ((== length m) . length) m = inv m
-    | length (head m) < length m = (`mmul` transpose m) <$> inv (transpose m `mmul` m)
-    | length (head m) > length m = (transpose m `mmul`) <$> inv (m `mmul` transpose m)
+    | all ((< length m) . length) m = (`mmul` transpose m) <$> inv (transpose m `mmul` m)
+    | all ((> length m) . length) m = (transpose m `mmul`) <$> inv (m `mmul` transpose m)
     | otherwise = Nothing
 
-leastSquarePinvRegular :: (Fractional a, Real a) => a -> [(a, a)] -> Maybe [[Rational]]
-leastSquarePinvRegular _ [] = Nothing
-leastSquarePinvRegular l m = fmap (`mmul` transpose m') $ inv $ map (map (*(toRational l))) (idm (length m')) `madd` (transpose m' `mmul` m')
+l2Reg :: (Fractional a, Real a) => a -> [(a, a)] -> Maybe [[Rational]]
+l2Reg _ [] = Nothing
+l2Reg l m = fmap (`mmul` transpose m') $ inv $ map (map (* toRational l)) (idm (length m')) `madd` (transpose m' `mmul` m')
     where
         m' = map (++[1]) $ transpose $ unfoldr (\i -> if i /= 0 then Just (toRational . (^^i) . fst <$> m, pred i) else Nothing) $ length m - 1
