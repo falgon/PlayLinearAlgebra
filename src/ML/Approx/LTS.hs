@@ -4,10 +4,10 @@ module ML.Approx.LTS (
  --   linearEqs
 ) where
 
-import Data.List (unfoldr)
+-- import Data.List (unfoldr)
 
-import Utils (Points)
-import Math.Matrix (Matrix, transpose, pinv, l2Reg, mmul)
+-- import Utils (Points)
+-- import Math.Matrix (Matrix, transpose, pinv, l2Reg, mmul)
 
 {-
 linearEqs :: (Ord a, Fractional a, Real a) => Int -> Int -> Points a -> Maybe (Matrix a)

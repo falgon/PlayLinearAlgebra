@@ -32,6 +32,10 @@ dependencies:
 - random
 - normaldistribution
 - process
+- repa
+- repa-algorithms
+- vector
+- array
 
 library:
   source-dirs: src
