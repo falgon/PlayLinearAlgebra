@@ -3,6 +3,8 @@
 {-# LANGUAGE FlexibleContexts #-}
 
 module Math.Matrix.LU (
+ --   setMaxAbsAt,
+    forward,
     PLU (..),
     fromPLU,
     doolittleST,
@@ -12,6 +14,7 @@ module Math.Matrix.LU (
 import Data.Array.IArray (IArray, bounds, listArray, (!))
 import Data.Array.ST (Ix, MArray, STUArray, newListArray, readArray, writeArray, thaw, freeze)
 import Data.Bool (bool)
+import Data.List (foldl1')
 import Data.Foldable (foldrM)
 import Data.Tuple.Extra (first, second, dupe)
 import Control.Monad (forM_, when)
@@ -66,8 +69,40 @@ instance (Ix i, Enum i, IArray a e, Show e) => Show (PLU a i e) where
     show (PLU ar) = "\n" ++ concat (flip map [fst $ fst $ bounds ar..fst $ snd $ bounds ar] $ \i ->
         "{\t" ++ (concat $ flip map [snd $ fst $ bounds ar..snd $ snd $ bounds ar] $ \j -> show (ar ! (i, j)) ++ "\t") ++ "}\n")
 
+{-# INLINE fromPLU #-}
 fromPLU :: PLU a i e -> a (i, i) e
 fromPLU (PLU ar) = ar
+
+swapAt :: Int -> Int -> [a] -> [a]
+swapAt ii jj mx
+    | ii == jj = mx
+    | ii > jj = swapAt jj ii mx
+    | otherwise = take ii mx ++ [mx !! jj] ++ take (pred (jj - ii)) (drop (succ ii) mx) ++ [mx !! ii] ++ drop (succ jj) mx
+
+setMaxAbsAt :: (Num a, Ord a) => Int -> [Int] -> [[a]] -> ([Int], [[a]])
+setMaxAbsAt i p m
+    | length m <= i || length m < 2 || length m /= length p = (p, m)
+    | otherwise = let rep = foldl1' (\x acc -> if abs ((m !! x) !! i) > abs ((m !! acc) !! i) then x else acc) $ [i..pred $ length m] in (swapAt i rep p, swapAt i rep m)
+
+-- forward :: Real a => [[a]] -> Maybe ([Int], [[a]])
+forward m
+    | length m < 2 || any ((< 2) . length) m = Nothing
+    | all ((==) (length m) . length) m = Just $ forward' 0 [0..pred $ length m] [] m
+    | otherwise = Nothing
+        where
+            elim :: (Fractional a, Real a) => Int -> [[a]] -> ([a], [[a]])
+            elim i mx = let use = (mx !! i) !! i; l = map ((/use) . flip (!!) i) $ drop (succ i) mx in 
+                (l, take (succ i) mx ++ zipWith (\row ll -> zipWith (+) row $ map (negate . (*ll)) (mx !! i)) (drop (succ i) mx) l)
+            
+            toUnite :: Int -> [[a]] -> [[a]] -> [[a]]
+            toUnite _ [] u = u
+            toUnite i (l:ls) u = let (uu:uus) = zipWith (\al urow -> take i urow ++ [al] ++ drop (succ i) urow) l u in uu : toUnite (succ i) ls uus
+
+            forward' :: (Fractional a, Real a) => Int -> [Int] -> [[a]] -> [[a]] -> ([Int], [[a]])
+            forward' i p l u
+                | i < pred (length u) = let (pp, mx) = setMaxAbsAt i p u in uncurry (forward' (succ i) pp) $ first ((l ++) . (:[])) $ elim i mx
+                | otherwise = (p, head u : toUnite 0 l (tail u))
+
 
 forwardST :: (IArray a Int, IArray a Double) => a (Int, Int) Double -> Maybe (a Int Int, PLU a Int Double) 
 forwardST m = let len = succ $ snd $ snd $ bounds m in runST $ do
@@ -89,6 +124,7 @@ forwardST m = let len = succ $ snd $ snd $ bounds m in runST $ do
                         kii <- readArray ar (k, i)
                         writeArray ar (k, j) (kj - ij * kii)
                 f $ succ i
+
 
 doolittleST :: (IArray a Int, IArray a Double) => a (Int, Int) Double -> Maybe (a Int Int, PLU a Int Double)
 doolittleST m 
