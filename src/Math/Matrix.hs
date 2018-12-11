@@ -3,7 +3,7 @@
 module Math.Matrix (
     Matrix,
     resolveLinearEq,
-    determinant,
+ --   determinant,
     madd,
     mmul,
     inv,
@@ -79,8 +79,8 @@ mmul lm rm = [[sum $ zipWith (*) l r | r <- transpose rm] | l <- lm]
 resolveLinearEq :: [[Rational]] -> [Rational] -> Maybe [Rational]
 resolveLinearEq = (.) (fmap (map (uncurry (/) . first last . second (sum . init) . dupe))) . (.) gaussianElim . zipWith (flip (.) (:[]) . (++))
 
-determinant :: Num a => [[a]] -> Maybe a
-determinant m | all ((== length m) . length) m = Just $ cofactorExpand 1 m | otherwise = Nothing
+-- determinant :: Num a => [[a]] -> Maybe a
+-- determinant m | all ((== length m) . length) m = Just $ cofactorExpand 1 m | otherwise = Nothing
 
 idm :: Int -> [[Rational]]
 idm n = let xs = [1 .. n] in [fromIntegral . fromEnum . (x==) <$> xs | x <- xs]
