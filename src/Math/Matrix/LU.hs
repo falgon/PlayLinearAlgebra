@@ -15,6 +15,7 @@ module Math.Matrix.LU (
     doolittleST',
     forwards,
     backwards,
+    assign,
     resolveLinearEq,
     resolveLinearEq',
     inverse,
@@ -190,10 +191,16 @@ backwards (p, lu@(LU lu')) (Forwarded b)
         forM_ [fst $ bounds b..snd $ bounds b] $ \i -> writeArray s i =<< readArray br (p ! i)
         freeze s
 
+-- | assign
+-- Forward and backward to LUx = Pv
+assign :: forall a e. (Ord e, Fractional e, IArray a Int, IArray a e) => PLU a Int e -> a Int e -> Maybe (a Int e)
+assign plu = maybe Nothing (backwards plu) . forwards plu
+
 -- | resolveLinearEq
 -- Solve the n simultaneous equations by PLU decomposition. `mxr` and `v` must be the same size.
 resolveLinearEq :: (Ord e, Fractional e, IArray a Int, IArray a e) => a (Int, Int) e -> a Int e -> Maybe (a Int e)
-resolveLinearEq mxr v = flip (maybe Nothing) (doolittleST mxr) $ uncurry (maybe Nothing) . first backwards . second (`forwards` v) . dupe
+resolveLinearEq mxr v = maybe Nothing (`assign` v) $ doolittleST mxr
+
 
 -- | resolveLinearEq'
 -- It is similar to `resolveLinearEq`. Receive list as input.
@@ -205,12 +212,13 @@ resolveLinearEq' mxr v = resolveLinearEq (to2dArray mxr) $ listArray (0, pred $ 
 inverse :: (Ord e, Fractional e, IArray a Int, IArray a e) => a (Int, Int) e -> Maybe (a (Int, Int) e)
 inverse mxr 
     | not $ isSquare mxr = Nothing
-    | otherwise = let len = succ $ fst (snd $ bounds mxr) - fst (fst $ bounds mxr) in
-        if length (calcs len) /= len then Nothing else 
-            Just $ listArray ((fst $ fst $ bounds mxr, fst $ fst $ bounds mxr), (pred len, pred len)) $ concat $ unfoldr (\x -> if x < len then Just (map (! x) (calcs len), succ x) else Nothing) 0
+    | otherwise = let len = succ $ fst (snd $ bounds mxr) - fst (fst $ bounds mxr); cal = calcs len in
+        if length cal /= len then Nothing else 
+            Just $ listArray ((fst $ fst $ bounds mxr, fst $ fst $ bounds mxr), (pred len, pred len)) $ concat $ unfoldr (\x -> if x < len then Just (map (! x) cal, succ x) else Nothing) 0
     where
         unitVecs i = replicate i 0 ++ [1] ++ repeat 0
-        calcs len = catMaybes $ unfoldr (\x -> if x < len then Just (resolveLinearEq mxr $ listArray (fst $ fst $ bounds mxr, pred len) $ take len (unitVecs x), succ x) else Nothing) 0
+        calcs len = flip (maybe []) (doolittleST mxr) $ \plu -> catMaybes $
+            unfoldr (\x -> if x < len then Just (maybe Nothing (backwards plu) $ forwards plu (listArray (fst $ fst $ bounds mxr, pred len) $ take len (unitVecs x)), succ x) else Nothing) 0
 
 -- | inverse'
 -- It is similar to `inverse`. Receive list as input.

@@ -44,7 +44,6 @@ extra-deps:
 - SVGFonts-1.6.0.3
 - paths-0.2.0.0@sha256:85e77985968860365cdb2074515b339863344ca0d28baa879baf4105f93e87cc
 - normaldistribution-1.1.0.3@sha256:2615b784c4112cbf6ffa0e2b55b76790290a9b9dff18a05d8c89aa374b213477
-- repa-algorithms-3.4.1.3@sha256:86e7e11f2ad4095d589fd23700350f4034ab2e1d8e094accb7fbe770af88175e
 
 # Override default flag values for local packages and extra-deps
 # flags: {}

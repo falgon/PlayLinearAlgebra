@@ -32,10 +32,9 @@ dependencies:
 - random
 - normaldistribution
 - process
-- repa
-- repa-algorithms
 - vector
 - array
+- monad-loops
 
 library:
   source-dirs: src
