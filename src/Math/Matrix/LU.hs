@@ -25,21 +25,13 @@ module Math.Matrix.LU (
 
 import Data.Array.IArray (IArray, bounds, listArray, elems, (!))
 import Data.Array.ST (Ix, MArray, STArray, newListArray, newArray, readArray, writeArray, thaw, freeze)
-import Data.Bool (bool)
 import Data.List (foldl1', unfoldr)
-import Data.Foldable (foldrM)
+import Data.Foldable (foldlM)
 import Data.Tuple.Extra (first, second, dupe)
 import Data.Maybe (catMaybes)
 import Control.Monad (forM_, when)
 import Control.Monad.Fix (fix)
 import Control.Monad.ST (ST, runST)
-
-{-
-{-# INLINE from2dList #-}
-from2dList :: MArray a e m => [[e]] -> m (a (Int, Int) e)
-from2dList [] = newListArray ((0, 0), (0, 0)) []
-from2dList xs = newListArray ((0, 0), (pred $ length xs, pred $ length $ head xs)) $ concat xs
--}
 
 {-# INLINE to2dArray #-}
 to2dArray :: IArray a e => [[e]] -> a (Int, Int) e
@@ -48,7 +40,7 @@ to2dArray xs = listArray ((0, 0), (pred $ length xs, pred $ length $ head xs)) $
 
 {-# INLINE swapMArray #-}
 swapMArray :: (MArray a e m, Ix i) => a i e -> i -> i -> m ()
-swapMArray ar fi ti = do
+swapMArray ar fi ti | fi == ti = return () | otherwise = do
     to <- readArray ar ti
     readArray ar fi >>= writeArray ar ti
     writeArray ar fi to
@@ -56,17 +48,9 @@ swapMArray ar fi ti = do
 newtype LU a i e = LU (a (i, i) e)
 newtype Forwarded a i e = Forwarded (a i e) deriving Show
 
--- showMatArray :: (Ix i, Enum i, IArray a e, show e) => a i e -> String
---showMatArray ar =  "\n" ++ concat (flip map [fst $ fst $ bounds ar..fst $ snd $ bounds ar] $ \i -> 
-  --  "{\t" ++ concat (flip map [snd $ fst $ bounds ar..snd $ snd $ bounds ar] $ \j -> show (ar ! (i, j)) ++ "\t") ++ "}\n")
-
-
 instance (Ix i, Enum i, IArray a e, Show e) => Show (LU a i e) where
     show (LU ar) = "\n" ++ concat (flip map [fst $ fst $ bounds ar..fst $ snd $ bounds ar] $ \i ->
         "{\t" ++ concat (flip map [snd $ fst $ bounds ar..snd $ snd $ bounds ar] $ \j -> show (ar ! (i, j)) ++ "\t") ++ "}\n")
-
---instance (Ix i, Enum i, IArray a e, Show e) => Show (Forwarded a i e) where
-  --  show (Forwarded ar) = showMatArray ar
 
 type PLU a i e = (a i i, LU a i e)
 
@@ -96,8 +80,8 @@ swapAt ii jj mx
 setMaxAbsAt :: (Num a, Ord a) => Int -> [Int] -> [[a]] -> ([Int], [[a]])
 setMaxAbsAt i p m
     | length m <= i || length m < 2 || length m /= length p = (p, m)
-    | otherwise = let rep = foldl1' (\x acc -> if abs ((m !! x) !! i) > abs ((m !! acc) !! i) then x else acc) [i..pred $ length m] in (swapAt i rep p, swapAt i rep m)
-
+    | otherwise = let rep = foldl1' (\acc x -> if abs ((m !! x) !! i) > abs ((m !! acc) !! i) then x else acc) [i..pred $ length m] in (swapAt i rep p, swapAt i rep m)
+    
 forward :: (Fractional e, IArray a Int, IArray a e, Ord e) => [[e]] -> Maybe (PLU a Int e)
 forward m
     | length m < 2 || any ((< 2) . length) m = Nothing
@@ -115,17 +99,16 @@ forward m
                 | otherwise = (listArray (0, pred $ length p) p, LU $ to2dArray (head u : toUnite 0 l (tail u)))
 
 forwardST :: forall a e. (Ord e, Fractional e, IArray a Int, IArray a e) => a (Int, Int) e -> Maybe (PLU a Int e) 
-forwardST m = let len = succ $ fst (snd $ bounds m) - fst (fst $ bounds m) in runST $ do
+forwardST m = let len = rowLength $ LU m in runST $ do
         ar <- thaw m :: ST s (STArray s (Int, Int) e) 
-        pr <- newListArray (0, pred len) [0..pred len] :: ST s (STArray s Int Int)
-        ($ 0) . fix $ \f i -> if i >= len then ((.) Just . (.) (second LU) . (,)) <$> freeze pr <*> freeze ar else do
-            now <- readArray ar (i, i)
-            r <- foldrM (\k acc -> bool acc k . (> abs now) . abs <$> readArray ar (k, i)) i [succ i..pred len]
+        pr <- newListArray (fst $ fst $ bounds m, fst $ snd $ bounds m) [fst $ fst $ bounds m..fst $ snd $ bounds m] :: ST s (STArray s Int Int)
+        ($ (fst $ fst $ bounds m)) . fix $ \f i -> if i >= fst (snd $ bounds m) then ((.) Just . (.) (second LU) . (,)) <$> freeze pr <*> freeze ar else do
+            r <- foldlM (\acc k -> (\now next -> if abs now < abs next then k else acc) <$> readArray ar (acc, i) <*> readArray ar (k, i)) i [succ i..pred len]
             maxn <- readArray ar (r, i)
             if maxn == 0 then return Nothing else do
                 when (r /= i) $ do
                     swapMArray pr r i
-                    forM_ [i..pred len] $ uncurry (swapMArray ar) . first (i,) . second (r,) . dupe 
+                    forM_ [fst (fst $ bounds m).. fst (snd $ bounds m)] $ uncurry (swapMArray ar) . first (i,) . second (r,) . dupe 
                 forM_ [succ i..pred len] $ \k -> do
                     writeArray ar (k, i) =<< (/) <$> readArray ar (k, i) <*> readArray ar (i, i)
                     forM_ [succ i..pred len] $ \j -> do
@@ -143,7 +126,6 @@ doolittle ::(Ord e, Fractional e, IArray a Int, IArray a e) => [[e]] -> Maybe (P
 doolittle m
     | length m > 1 && all ((== length m) . length) m = forward m
     | otherwise = Nothing
-
 
 -- | doolittleST
 -- If it is a square and regular matrix, 
@@ -201,7 +183,6 @@ assign plu = maybe Nothing (backwards plu) . forwards plu
 resolveLinearEq :: (Ord e, Fractional e, IArray a Int, IArray a e) => a (Int, Int) e -> a Int e -> Maybe (a Int e)
 resolveLinearEq mxr v = maybe Nothing (`assign` v) $ doolittleST mxr
 
-
 -- | resolveLinearEq'
 -- It is similar to `resolveLinearEq`. Receive list as input.
 resolveLinearEq' :: (Ord e, Fractional e, IArray a Int, IArray a e) => [[e]] -> [e] -> Maybe (a Int e)
@@ -218,23 +199,25 @@ inverse mxr
     where
         unitVecs i = replicate i 0 ++ [1] ++ repeat 0
         calcs len = flip (maybe []) (doolittleST mxr) $ \plu -> catMaybes $
-            unfoldr (\x -> if x < len then Just (maybe Nothing (backwards plu) $ forwards plu (listArray (fst $ fst $ bounds mxr, pred len) $ take len (unitVecs x)), succ x) else Nothing) 0
+            unfoldr (\x -> if x < len then Just (plu `assign` (listArray (fst $ fst $ bounds mxr, pred len) $ take len (unitVecs x)), succ x) else Nothing) 0
 
 -- | inverse'
 -- It is similar to `inverse`. Receive list as input.
 inverse' :: (Ord e, Fractional e, IArray a Int, IArray a e) => [[e]] -> Maybe (a (Int, Int) e)
 inverse' = inverse . to2dArray
 
+
 -- | determinant
 -- Compute determinant by LU decomposition.
--- determinant :: (Ord e, Fractional e, IArray a Int, IArray a e) => a (Int, Int) e -> e
+-- |A| = |LU| = |L||U| = product u_ii because L is a lower triangular matrix and U is upper triangular matrix.
+determinant :: (Ord e, Fractional e, IArray a Int, IArray a e) => a (Int, Int) e -> e
 determinant mxr 
     | not $ isSquare mxr = 0
     | otherwise = flip (maybe 0) (doolittleST mxr) $ 
-        \(p, (LU lu)) -> {- (if sign p then 1 else -1) + -} product (unfoldr (\x -> if fst (snd (bounds mxr)) - fst (fst (bounds mxr)) <= x then Just (lu ! (x, x), succ x) else Nothing) 0)
+        \(p, lu@(LU lu')) -> (if sign p then -1 else 1) * product (unfoldr (\x -> if x < rowLength lu then Just (lu' ! (x, x), succ x) else Nothing) 0)
     where
-        sign p = even $ sum $ flip unfoldr (elems p, 0) $ \(ps, i) -> if length ps == 0 then Nothing else
-            if head ps == i then Just (0, (tail ps, succ i)) else Just (1, (let tp = tail ps in take (head ps) tp ++ drop (succ (head ps)) tp, succ i))
-        
--- determinant' :: (Ord e, Fractional e) => [[e]] -> e
--- determinant' = determinant . to2dArray
+        {-# INLINE dropAt #-}
+        dropAt i xs = take i xs ++ drop (succ i) xs
+        sign pp = even $ (sum :: [Integer] -> Integer) $ flip unfoldr (elems pp, 0) $
+            \(pps, i) -> if length pps == 0 then Nothing else let (p:ps) = pps in 
+                if p == i then Just (0, (ps, succ i)) else Just (1, (dropAt (pred p - i) ps, succ i))

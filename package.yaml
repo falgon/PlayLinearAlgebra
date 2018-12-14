@@ -40,8 +40,8 @@ library:
   source-dirs: src
 
 executables:
-  lineqByRecursion:
-    main:                lineqByRecursion/Main.hs
+  lineqByLU:
+    main:                lineqByLU/Main.hs
     source-dirs:         app
     ghc-options:
     - -threaded

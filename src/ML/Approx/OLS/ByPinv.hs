@@ -1,5 +1,5 @@
-{-# OPTIONS_GHC -Wall #-}
 -- | Ordinary Least Squares Regression
+{-# OPTIONS_GHC -Wall #-}
 
 module ML.Approx.OLS.ByPinv (
     linearEqs,
