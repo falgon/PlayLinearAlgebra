@@ -9,7 +9,7 @@ import Data.List (unfoldr)
 import Data.Tuple.Extra (first)
 import Data.Array.IArray (Array, elems)
 
-import Math.Matrix.LU (resolveLinearEq')
+import Math.Matrix.Core (resolveLinearEq')
 import Utils (Points)
 
 {-# INLINE xsums #-}

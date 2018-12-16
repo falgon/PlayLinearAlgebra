@@ -1,20 +1,25 @@
 {-# OPTIONS_GHC -Wall #-}
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE FlexibleContexts #-}
 module Math.Matrix (
     Matrix,
-    resolveLinearEq,
+ --   resolveLinearEq,
  --   determinant,
     madd,
     mmul,
     inv,
     pinv,
     l2Reg,
-    transpose
+    transpose,
+    pseudoInverse
 ) where
 
 import Data.Maybe (fromJust)
 import Data.List (transpose, unfoldr)
 import Data.Tuple.Extra (first, second, dupe)
+import Data.Array.IArray (IArray)
+
+import qualified Math.Matrix.Core as ML -- (isSquare, inverse)
 
 #ifdef __GLASGOW_HASKELL__
 {-# INLINE swapElems #-}
@@ -76,8 +81,8 @@ madd = zipWith (zipWith (+))
 mmul :: [[Rational]] -> [[Rational]] -> [[Rational]]
 mmul lm rm = [[sum $ zipWith (*) l r | r <- transpose rm] | l <- lm]
 
-resolveLinearEq :: [[Rational]] -> [Rational] -> Maybe [Rational]
-resolveLinearEq = (.) (fmap (map (uncurry (/) . first last . second (sum . init) . dupe))) . (.) gaussianElim . zipWith (flip (.) (:[]) . (++))
+-- resolveLinearEq :: [[Rational]] -> [Rational] -> Maybe [Rational]
+-- resolveLinearEq = (.) (fmap (map (uncurry (/) . first last . second (sum . init) . dupe))) . (.) gaussianElim . zipWith (flip (.) (:[]) . (++))
 
 -- determinant :: Num a => [[a]] -> Maybe a
 -- determinant m | all ((== length m) . length) m = Just $ cofactorExpand 1 m | otherwise = Nothing
@@ -105,3 +110,14 @@ l2Reg _ [] = Nothing
 l2Reg l m = fmap (`mmul` transpose m') $ inv $ map (map (* toRational l)) (idm (length m')) `madd` (transpose m' `mmul` m')
     where
         m' = map (++[1]) $ transpose $ unfoldr (\i -> if i /= 0 then Just (toRational . (^^i) . fst <$> m, pred i) else Nothing) $ length m - 1
+
+-- transpose :: (Ord e, Fractional e, IArray a Int, IArray a e) => a (Int, Int) e -> a (Int, Int) e
+-- transpose mx = 
+
+pseudoInverse :: (Ord e, Fractional e, IArray a Int, IArray a e) => ML.Matrix a Int e -> Maybe (ML.Matrix a Int e)
+pseudoInverse mx
+    | ML.isSquare mx = ML.inverse mx
+    -- | ML.colLen mx < ML.rowLen mx = 
+--    | snd (snd $ bounds mx) < fsd (snd $ bounds mx) = 
+--    | fst (snd $ bounds mx) < snd (snd $ bounds mx) = 
+    | otherwise = Nothing
