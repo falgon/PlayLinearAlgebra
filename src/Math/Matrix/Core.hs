@@ -6,6 +6,7 @@ module Math.Matrix.Core (
     Matrix (..),
     LU (..),
     PLU,
+    to2dArray,
     doolittle,
     doolittleST,
     doolittleST',
@@ -16,11 +17,13 @@ module Math.Matrix.Core (
     resolveLinearEq',
     inverse,
     inverse',
-    determinant
+    determinant,
+    pseudoInverse,
+    pseudoInverse'
 ) where
 
 import Data.Array.IArray (IArray, bounds, listArray, elems, indices, (!))
-import Data.Array.ST (Ix, MArray, STArray, newListArray, newArray, readArray, writeArray, thaw, freeze)
+import Data.Array.ST (Ix, MArray, STArray, newListArray, newArray, readArray, writeArray, mapArray, thaw, freeze)
 import Data.List (foldl1', unfoldr)
 import Data.Foldable (foldlM)
 import Data.Tuple.Extra (first, second, dupe, (***))
@@ -90,6 +93,10 @@ class Mat z where
     mul lm rm 
         | colLen lm /= rowLen rm = Nothing 
         | otherwise = Just $ toMat $ to2dArray [[sum $ zipWith (*) l r | r <- toList $ transpose rm] | l <- toList lm]
+
+    {-# INLINE smul #-}
+    smul :: forall a i e. (Num e, IArray a e, Ix i, Enum i, Num i) => e -> z a i e -> z a i e
+    smul sv mx = toMat $ runST $ (thaw (fromMat mx) :: ST s (STArray s (i, i) e)) >>= mapArray (*sv) >>= freeze
         
     transpose :: forall a i e. (Num e, IArray a e, Ix i, Enum i, Num i) => z a i e -> z a i e
     transpose mx = toMat $ runST $ do
@@ -160,7 +167,7 @@ forward m
 forwardST :: forall a e. (Ord e, Fractional e, IArray a Int, IArray a e) => Matrix a Int e -> Maybe (PLU a Int e) 
 forwardST mx = let len = rowLen mx; m = fromMat mx in runST $ do
         ar <- thaw m :: ST s (STArray s (Int, Int) e) 
-        pr <- newListArray {- (fst $ fst $ bounds m, fst $ snd $ bounds m) -} ((fst *** fst) (bounds m)) [fst $ fst $ bounds m..fst $ snd $ bounds m] :: ST s (STArray s Int Int)
+        pr <- newListArray ((fst *** fst) (bounds m)) [fst $ fst $ bounds m..fst $ snd $ bounds m] :: ST s (STArray s Int Int)
         ($ (fst $ fst $ bounds m)) . fix $ \f i -> if i >= fst (snd $ bounds m) then ((.) Just . (.) (second LU) . (,)) <$> freeze pr <*> freeze ar else do
             r <- foldlM (\acc k -> (\now next -> if abs now < abs next then k else acc) <$> readArray ar (acc, i) <*> readArray ar (k, i)) i [succ i..pred len]
             maxn <- readArray ar (r, i)
@@ -250,7 +257,7 @@ resolveLinearEq :: (Ord e, Fractional e, IArray a Int, IArray a e) => Matrix a I
 resolveLinearEq mxr v = maybe Nothing (`assign` v) $ doolittleST mxr
 
 -- | resolveLinearEq'
--- It is similar to `resolveLinearEq`. Receive list as input.
+-- Similar to `resolveLinearEq`. Receive list as input.
 {-# INLINE resolveLinearEq' #-}
 resolveLinearEq' :: (Ord e, Fractional e, IArray a Int, IArray a e) => [[e]] -> [e] -> Maybe (a Int e)
 resolveLinearEq' mxr v = resolveLinearEq (Matrix $ to2dArray mxr) $ listArray (0, pred $ length v) v
@@ -269,7 +276,7 @@ inverse mxr
             unfoldr (\x -> if x < len then Just (plu `assign` listArray (first fst $ second fst $ bds mxr) (take len (unitVecs x)), succ x) else Nothing) 0
 
 -- | inverse'
--- It is similar to `inverse`. Receive list as input.
+-- Similar to `inverse`. Receive list as input.
 {-# INLINE inverse' #-}
 inverse' :: (Ord e, Fractional e, IArray a Int, IArray a e) => [[e]] -> Maybe (Matrix a Int e) 
 inverse' = inverse . Matrix . to2dArray
@@ -277,7 +284,6 @@ inverse' = inverse . Matrix . to2dArray
 
 -- | determinant
 -- Compute determinant by LU decomposition.
--- |A| = |LU| = |L||U| = product u_ii because L is a lower triangular matrix and U is upper triangular matrix.
 determinant :: (Ord e, Fractional e, IArray a Int, IArray a e) => Matrix a Int e -> e
 determinant mxr 
     | not $ isSquare mxr = 0
@@ -290,3 +296,19 @@ determinant mxr
         sign pp = even $ (sum :: [Integer] -> Integer) $ flip unfoldr (elems pp, 0) $
             \(pps, i) -> if null pps then Nothing else let (p:ps) = pps in 
                 if p == i then Just (0, (ps, succ i)) else Just (1, (dropAt (pred p - i) ps, succ i))
+
+-- | pseudoInverse
+-- Returns the Moore Penrose pseudo inverse matrix for a matrix.
+pseudoInverse :: (Ord e, Fractional e, IArray a Int, IArray a e) => Matrix a Int e -> Maybe (Matrix a Int e)
+pseudoInverse mx
+    | isSquare mx = inverse mx
+    | colLen mx < rowLen mx = maybe Nothing (`mul` transpose mx) $ maybe Nothing inverse (transpose mx `mul` mx)
+    | colLen mx > rowLen mx = maybe Nothing (transpose mx `mul`) $ maybe Nothing inverse (mx `mul` transpose mx)
+    | otherwise = Nothing
+
+-- | pseudoInverse'
+-- Similar to pseudoInverse. Receive list as input.
+{-# INLINE pseudoInverse' #-}
+pseudoInverse' :: (Ord e, Fractional e, IArray a Int, IArray a e) => [[e]] -> Maybe (Matrix a Int e)
+pseudoInverse' = pseudoInverse . toMat . to2dArray
+

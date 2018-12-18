@@ -2,15 +2,17 @@
 {-# OPTIONS_GHC -Wall #-}
 
 module ML.Approx.OLS.ByPinv (
-    linearEqs,
+    resolve
 ) where
 
-import Data.List (unfoldr)
+import qualified Data.List as L
 
-import Utils (Points)
-import Math.Matrix (Matrix, transpose, pinv, mmul)
+import Math.Matrix.Core (Matrix, toMat, toList, mul, to2dArray, pseudoInverse')
+import Data.Array.IArray (Array)
 
-linearEqs :: (Ord a, Fractional a, Real a) => Int -> Points a -> Maybe (Matrix a)
-linearEqs n m = map (map fromRational) . (`mmul` map ((:[]) . toRational . snd) m) <$> pinv (coes n)
+resolve :: (Ord a, Fractional a, Real a) => Int -> [(a, a)] -> Maybe [[a]]
+resolve n m = maybe Nothing (fmap (map (map fromRational) . toList) . (`mul` sn)) $ pseudoInverse' (coes n)
     where
-        coes = map (++[1]) . transpose . unfoldr (\i -> if i /= 0 then Just (toRational . (^^i) . fst <$> m, pred i) else Nothing)
+        coes = map (++[1]) . L.transpose . L.unfoldr (\i -> if i /= 0 then Just (toRational . (^^i) . fst <$> m, pred i) else Nothing)
+        sn :: Matrix Array Int Rational
+        sn = toMat $ to2dArray $ map ((:[]) . toRational . snd) m

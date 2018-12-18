@@ -5,8 +5,6 @@ module Utils (
     plot,
     plotAxisSpecified,
     implicitFn,
-    Points,
-    Matrix,
     help,
     s2i,
     mkFrames
@@ -25,7 +23,6 @@ import System.Process (readProcess)
 import Data.List (sort, sortBy)
 import Data.Char (isDigit)
 
-import Math.Matrix (Matrix)
 import System.IO.Directory
 
 s2i :: String -> Int
@@ -37,9 +34,7 @@ tmpname = "tmp"
 tmpdir :: FilePath
 tmpdir = "tmpimg"
 
-type Points a = [(a, a)]
-
-data PP a = PP FilePath String String String (Points a) (a -> a)
+data PP a = PP FilePath String String String [(a, a)] (a -> a)
 data PPA a = PPA (PP a) (a, a) (a, a)
 
 help :: IO ()
@@ -66,7 +61,7 @@ plotAxisSpecified (PPA pp@(PP fp _ _ _ _ _) (xmin, xmax) (ymin, ymax)) = GR.toFi
     execPlot pp
 
 -- | Given matrix and return complete implicit function
-implicitFn :: Fractional a => Matrix a -> Maybe (a -> a)
+implicitFn :: Fractional a => [[a]] -> Maybe (a -> a)
 implicitFn [] = Nothing
 implicitFn m 
     | any ((/=1) . length) m = Nothing 
