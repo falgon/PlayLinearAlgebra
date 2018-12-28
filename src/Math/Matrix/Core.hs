@@ -7,9 +7,9 @@ module Math.Matrix.Core (
     LU (..),
     PLU,
     to2dArray,
-    doolittle,
-    doolittleST,
-    doolittleST',
+    lu,
+    luST,
+    luST',
     forwards,
     backwards,
     assign,
@@ -184,40 +184,44 @@ forwardST mx = let len = rowLen mx; m = fromMat mx in runST $ do
                         writeArray ar (k, j) (kj - ij * kii)
                 f $ succ i
 
--- | doolittle
+-- croutST :: (Ord e, Fractional e, IArray a Int, IArray a e) => Matrix a Int e -> Maybe (PLU a Int e)
+-- croutST mx = let len = rowLen mx; m = fromMat mx in runST $ do
+    
+
+-- | lu
 -- If it is a square and regular matrix, 
 -- it returns the exchange information of the row permutation and the LU-decomposed array(It is grouped in one matrix).
 -- Otherwise it returns Nothing. Use list for LU factorization.
-{-# INLINE doolittle #-}
-doolittle ::(Ord e, Fractional e, IArray a Int, IArray a e) => [[e]] -> Maybe (PLU a Int e)
-doolittle m
+{-# INLINE lu #-}
+lu :: (Ord e, Fractional e, IArray a Int, IArray a e) => [[e]] -> Maybe (PLU a Int e)
+lu m
     | length m > 1 && all ((== length m) . length) m = forward m
     | otherwise = Nothing
 
 
--- | doolittleST
+-- | luST
 -- If it is a square and regular matrix, 
 -- it returns the exchange information of the row permutation and the LU-decomposed array(It is grouped in one matrix).
 -- Otherwise it returns Nothing. Use ST Monad for LU factorization.
-{-# INLINE doolittleST #-}
-doolittleST :: (Ord e, Fractional e, IArray a Int, IArray a e) => Matrix a Int e -> Maybe (PLU a Int e)
-doolittleST m 
+{-# INLINE luST #-}
+luST :: (Ord e, Fractional e, IArray a Int, IArray a e) => Matrix a Int e -> Maybe (PLU a Int e)
+luST m 
     | rowLen m > 1 && colLen m > 1 && isSquare m = forwardST m
     | otherwise = Nothing
 
 
--- | doolittleST'
--- It is similar to `doolittleST`. Receive list as input.
-{-# INLINE doolittleST' #-}
-doolittleST' :: (Ord e, Fractional e, IArray a Int, IArray a e) => [[e]] -> Maybe (PLU a Int e)
-doolittleST' = doolittleST . Matrix . to2dArray 
+-- | luST'
+-- It is similar to `luST`. Receive list as input.
+{-# INLINE luST' #-}
+luST' :: (Ord e, Fractional e, IArray a Int, IArray a e) => [[e]] -> Maybe (PLU a Int e)
+luST' = luST . Matrix . to2dArray 
 
 
 -- | forwards
 -- First solve Lb = Pv about b
 forwards :: forall a e. (Ord e, Fractional e, IArray a Int, IArray a e) => PLU a Int e -> a Int e -> Maybe (Forwarded a Int e)
-forwards (p, lu@(LU lu')) v
-    | not $ isSquare lu = Nothing
+forwards (p, lud@(LU lu')) v
+    | not $ isSquare lud = Nothing
     | otherwise = Just $ runST $ do
         vr <- thaw v :: ST s (STArray s Int e)
         forM_ [fst $ bounds v..pred $ snd $ bounds v] $ \i -> forM_ [succ i..snd $ bounds v] $ \j -> do
@@ -230,9 +234,9 @@ forwards (p, lu@(LU lu')) v
 -- | backwards
 -- Finally solve Ux = b about x
 backwards :: forall a e. (Ord e, Fractional e, IArray a Int, IArray a e) => PLU a Int e -> Forwarded a Int e -> Maybe (a Int e)
-backwards (p, lu@(LU lu')) (Forwarded b)
-    | not $ isSquare lu = Nothing
-    | otherwise = let len = rowLen lu in Just $ runST $ do
+backwards (p, lud@(LU lu')) (Forwarded b)
+    | not $ isSquare lud = Nothing
+    | otherwise = let len = rowLen lud in Just $ runST $ do
         br <- thaw b :: ST s (STArray s Int e)
         forM_ [pred len, pred $ pred len..0] $ \i -> do
             writeArray br (p ! i) . (/ lu' ! (i, i)) =<< readArray br (p ! i)
@@ -254,7 +258,7 @@ assign plu = maybe Nothing (backwards plu) . forwards plu
 -- Solve the n simultaneous equations by PLU decomposition. `mxr` and `v` must be the same size.
 {-# INLINE resolveLinearEq #-}
 resolveLinearEq :: (Ord e, Fractional e, IArray a Int, IArray a e) => Matrix a Int e -> a Int e -> Maybe (a Int e)
-resolveLinearEq mxr v = maybe Nothing (`assign` v) $ doolittleST mxr
+resolveLinearEq mxr v = maybe Nothing (`assign` v) $ luST mxr
 
 -- | resolveLinearEq'
 -- Similar to `resolveLinearEq`. Receive list as input.
@@ -272,7 +276,7 @@ inverse mxr
             Just $ Matrix $ listArray (bds mxr) $ concat $ unfoldr (\x -> if x < len then Just (map (! x) cal, succ x) else Nothing) 0
     where
         unitVecs i = replicate i 0 ++ [1] ++ repeat 0
-        calcs len = flip (maybe []) (doolittleST mxr) $ \plu -> catMaybes $
+        calcs len = flip (maybe []) (luST mxr) $ \plu -> catMaybes $
             unfoldr (\x -> if x < len then Just (plu `assign` listArray (first fst $ second fst $ bds mxr) (take len (unitVecs x)), succ x) else Nothing) 0
 
 -- | inverse'
@@ -287,8 +291,8 @@ inverse' = inverse . Matrix . to2dArray
 determinant :: (Ord e, Fractional e, IArray a Int, IArray a e) => Matrix a Int e -> e
 determinant mxr 
     | not $ isSquare mxr = 0
-    | otherwise = flip (maybe 0) (doolittleST mxr) $ 
-        \(p, lu@(LU lu')) -> (if sign p then -1 else 1) * product (unfoldr (\x -> if x < rowLen lu then Just (lu' ! (x, x), succ x) else Nothing) 0)
+    | otherwise = flip (maybe 0) (luST mxr) $ 
+        \(p, lud@(LU lu')) -> (if sign p then -1 else 1) * product (unfoldr (\x -> if x < rowLen lud then Just (lu' ! (x, x), succ x) else Nothing) 0)
     where
         {-# INLINE dropAt #-}
         dropAt i xs = take i xs ++ drop (succ i) xs
