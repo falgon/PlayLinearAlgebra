@@ -10,6 +10,8 @@ module Math.Matrix.Core (
     lu,
     luST,
     luST',
+    doolittle,
+    doolittle',
     forwards,
     backwards,
     assign,
@@ -28,7 +30,7 @@ import Data.List (foldl1', unfoldr)
 import Data.Foldable (foldlM)
 import Data.Tuple.Extra (first, second, dupe, (***))
 import Data.Maybe (catMaybes)
-import Control.Monad (forM_, when)
+import Control.Monad (forM, forM_, when)
 import Control.Monad.Fix (fix)
 import Control.Monad.ST (ST, runST)
 
@@ -166,27 +168,82 @@ forward m
 
 forwardST :: forall a e. (Ord e, Fractional e, IArray a Int, IArray a e) => Matrix a Int e -> Maybe (PLU a Int e) 
 forwardST mx = let len = rowLen mx; m = fromMat mx in runST $ do
-        ar <- thaw m :: ST s (STArray s (Int, Int) e) 
-        pr <- newListArray ((fst *** fst) (bounds m)) [fst $ fst $ bounds m..fst $ snd $ bounds m] :: ST s (STArray s Int Int)
-        ($ (fst $ fst $ bounds m)) . fix $ \f i -> if i >= fst (snd $ bounds m) then ((.) Just . (.) (second LU) . (,)) <$> freeze pr <*> freeze ar else do
-            r <- foldlM (\acc k -> (\now next -> if abs now < abs next then k else acc) <$> readArray ar (acc, i) <*> readArray ar (k, i)) i [succ i..pred len]
-            maxn <- readArray ar (r, i)
-            if maxn == 0 then return Nothing else do
-                when (r /= i) $ do
-                    swapMArray pr r i
-                    forM_ [fst (fst $ bounds m).. fst (snd $ bounds m)] $ uncurry (swapMArray ar) . first (i,) . second (r,) . dupe 
-                forM_ [succ i..pred len] $ \k -> do
-                    writeArray ar (k, i) =<< (/) <$> readArray ar (k, i) <*> readArray ar (i, i)
-                    forM_ [succ i..pred len] $ \j -> do
-                        kj <- readArray ar (k, j)
-                        ij <- readArray ar (i, j)
-                        kii <- readArray ar (k, i)
-                        writeArray ar (k, j) (kj - ij * kii)
-                f $ succ i
+    ar <- thaw m :: ST s (STArray s (Int, Int) e) 
+    pr <- newListArray ((fst *** fst) (bounds m)) [fst $ fst $ bounds m..fst $ snd $ bounds m] :: ST s (STArray s Int Int)
+    ($ (fst $ fst $ bounds m)) . fix $ \f i -> if i >= fst (snd $ bounds m) then ((.) Just . (.) (second LU) . (,)) <$> freeze pr <*> freeze ar else do
+        r <- foldlM (\acc k -> (\now next -> if abs now < abs next then k else acc) <$> readArray ar (acc, i) <*> readArray ar (k, i)) i [succ i..pred len]
+        maxn <- readArray ar (r, i)
+        if maxn == 0 then return Nothing else do
+            when (r /= i) $ do
+                swapMArray pr r i
+                forM_ [fst (fst $ bounds m)..fst (snd $ bounds m)] $ uncurry (swapMArray ar) . first (i,) . second (r,) . dupe 
+            forM_ [succ i..pred len] $ \k -> do
+                writeArray ar (k, i) =<< (/) <$> readArray ar (k, i) <*> readArray ar (i, i)
+                forM_ [succ i..pred len] $ \j -> do
+                    kj <- readArray ar (k, j)
+                    ij <- readArray ar (i, j)
+                    kii <- readArray ar (k, i)
+                    writeArray ar (k, j) (kj - ij * kii)
+            f $ succ i
 
 -- croutST :: (Ord e, Fractional e, IArray a Int, IArray a e) => Matrix a Int e -> Maybe (PLU a Int e)
 -- croutST mx = let len = rowLen mx; m = fromMat mx in runST $ do
-    
+ 
+doolittleST :: forall a e. (Ord e, Fractional e, IArray a Int, IArray a e) => Matrix a Int e -> Maybe (PLU a Int e)
+doolittleST mx = let len = rowLen mx; m = fromMat mx in runST $ do
+    ar <- thaw m :: ST s (STArray s (Int, Int) e)
+    pr <- newListArray ((fst *** fst) (bounds m)) [fst $ fst $ bounds m..fst $ snd $ bounds m] :: ST s (STArray s Int Int)
+    r <- foldlM (\acc k -> (\now next -> if abs now < abs next then k else acc) <$> readArray ar (acc, 0) <*> readArray ar (k, 0)) 0 [1..pred len]
+    maxn <- readArray ar (r, 0)
+    if maxn == 0 then return Nothing else do
+        when (r /= 0) $ do
+            swapMArray pr r 0
+            forM_ [fst $ fst $ bounds m..pred len] $ uncurry (swapMArray ar) . first (0,) . second (r,) . dupe 
+        forM_ [fst $ fst $ bounds m..pred len] $ \k -> do
+            forM_ [fst $ fst $ bounds m..pred k] $ \j -> forM_ [succ j..fst $ snd $ bounds m] $ \i -> do
+                t <- (.) negate . (*) <$> readArray ar (i, j) <*> readArray ar (j, k)
+                writeArray ar (i, k) =<< (+t) <$> readArray ar (i, k)
+            forM_ [succ k..pred len] $ \i -> writeArray ar (i, k) =<< (/) <$> readArray ar (i, k) <*> readArray ar (k, k)
+        ((.) Just . (.) (second LU) . (,)) <$> freeze pr <*> freeze ar
+
+{-
+
+        ($ (fst $ fst $ bounds m)) . fix $ \f k -> if k > fst (snd $ bounds m) then ((.) Just . (.) (second LU) . (,)) <$> freeze pr <*> freeze ar else do
+            forM_ [fst $ fst $ bounds m..pred k] $ \j -> forM_ [j + 1..fst $ snd $ bounds m] $ \i -> do
+                t <- (.) negate . (*) <$> readArray ar (i, j) <*> readArray ar (j, k)
+                writeArray ar (i, k) =<< (+t) <$> readArray ar (i, k)
+            writeArray ar (k, k) =<< (1/) <$> readArray ar (k, k)
+            forM_ [succ k..fst $ snd $ bounds m] $ \i -> writeArray ar (i, k) =<< (*) <$> readArray ar (i, k) <*> readArray ar (k, k)
+            f $ succ k
+-}
+
+    {-
+        r <- foldlM (\acc k -> (\now next -> if abs now < abs next then k else acc) <$> readArray ar (acc, i) <*> readArray ar (k, i)) i [succ i..pred len]
+        maxn <- readArray ar (r, i)
+        if maxn == 0 then return Nothing else do
+            when (r /= i) $ do
+                swapMArray pr r i
+                forM_ [fst (fst $ bounds m)..fst (snd $ bounds m)] $ uncurry (swapMArray ar) . first (i,) . second (r,) . dupe
+            forM_ [fst $ fst $ bounds m..pred i] $ \j -> forM_ [succ j..fst $ snd $ bounds m] $ \k -> do
+                t <- (.) negate . (*) <$> readArray ar (k, j) <*> readArray ar (j, i)
+                writeArray ar (k, i) =<< (+t) <$> readArray ar (k, i)
+            writeArray ar (i, i) =<< (1/) <$> readArray ar (i, i) 
+            forM_ [succ i..fst (snd $ bounds m)] $ \k -> writeArray ar (k, i) =<< (*) <$> readArray ar (k, i) <*> readArray ar (i, i)
+            f $ succ i
+-}
+
+
+{-# INLINE doolittle #-}
+doolittle :: (Ord e, Fractional e, IArray a Int, IArray a e) => Matrix a Int e -> Maybe (PLU a Int e)
+doolittle m
+    | rowLen m > 1 && colLen m > 1 && isSquare m = doolittleST m
+    | otherwise = Nothing
+
+{-# INLINE doolittle' #-}
+doolittle' :: (Ord e, Fractional e, IArray a Int, IArray a e) => [[e]] -> Maybe (PLU a Int e)
+doolittle' m
+    | length m > 1 && all ((== length m) . length) m = doolittleST $ Matrix $ to2dArray m
+    | otherwise = Nothing
 
 -- | lu
 -- If it is a square and regular matrix, 
