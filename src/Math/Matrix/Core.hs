@@ -10,8 +10,6 @@ module Math.Matrix.Core (
     lu,
     luST,
     luST',
-    doolittle,
-    doolittle',
     forwards,
     backwards,
     assign,
@@ -150,6 +148,8 @@ setMaxAbsAt i p m
     | length m <= i || length m < 2 || length m /= length p = (p, m)
     | otherwise = let rep = foldl1' (\acc x -> if abs ((m !! x) !! i) > abs ((m !! acc) !! i) then x else acc) [i..pred $ length m] in (swapAt i rep p, swapAt i rep m)
     
+-- | forward
+-- lu decomposition with right-looking algorithm (list only)
 forward :: (Fractional e, IArray a Int, IArray a e, Ord e) => [[e]] -> Maybe (PLU a Int e)
 forward m
     | length m < 2 || any ((< 2) . length) m = Nothing
@@ -166,6 +166,8 @@ forward m
                 | i < pred (length u) = let (pp, mx) = setMaxAbsAt i p u in uncurry (forward' (succ i) pp) $ first ((l ++) . (:[])) $ elim i mx
                 | otherwise = (listArray (0, pred $ length p) p, LU $ to2dArray (head u : toUnite 0 l (tail u)))
 
+-- | forwardST
+-- lu decomposition with right-looking algorithm
 forwardST :: forall a e. (Ord e, Fractional e, IArray a Int, IArray a e) => Matrix a Int e -> Maybe (PLU a Int e) 
 forwardST mx = let len = rowLen mx; m = fromMat mx in runST $ do
     ar <- thaw m :: ST s (STArray s (Int, Int) e) 
@@ -186,9 +188,38 @@ forwardST mx = let len = rowLen mx; m = fromMat mx in runST $ do
                     writeArray ar (k, j) (kj - ij * kii)
             f $ succ i
 
--- croutST :: (Ord e, Fractional e, IArray a Int, IArray a e) => Matrix a Int e -> Maybe (PLU a Int e)
--- croutST mx = let len = rowLen mx; m = fromMat mx in runST $ do
- 
+
+-- | lu
+-- If it is a square and regular matrix, 
+-- it returns the exchange information of the row permutation and the LU-decomposed array (it is grouped in one matrix).
+-- Otherwise it returns Nothing. Use list for LU factorization.
+{-# INLINE lu #-}
+lu :: (Ord e, Fractional e, IArray a Int, IArray a e) => [[e]] -> Maybe (PLU a Int e)
+lu m
+    | length m > 1 && all ((== length m) . length) m = forward m
+    | otherwise = Nothing
+
+-- | luST
+-- If it is a square and regular matrix, 
+-- it returns the exchange information of the row permutation and the LU-decomposed array (it is grouped in one matrix).
+-- Otherwise it returns Nothing. Use ST Monad for LU factorization.
+{-# INLINE luST #-}
+luST :: (Ord e, Fractional e, IArray a Int, IArray a e) => Matrix a Int e -> Maybe (PLU a Int e)
+luST m 
+    | rowLen m > 1 && colLen m > 1 && isSquare m = forwardST m
+    | otherwise = Nothing
+
+
+-- | luST'
+-- It is similar to `luST`. Receive list as input.
+{-# INLINE luST' #-}
+luST' :: (Ord e, Fractional e, IArray a Int, IArray a e) => [[e]] -> Maybe (PLU a Int e)
+luST' = luST . Matrix . to2dArray 
+
+
+-- | doolittleST
+-- lu decomposition with left-looking (doolittle format) algorithm
+{-
 doolittleST :: forall a e. (Ord e, Fractional e, IArray a Int, IArray a e) => Matrix a Int e -> Maybe (PLU a Int e)
 doolittleST mx = let len = rowLen mx; m = fromMat mx in runST $ do
     ar <- thaw m :: ST s (STArray s (Int, Int) e)
@@ -206,73 +237,24 @@ doolittleST mx = let len = rowLen mx; m = fromMat mx in runST $ do
             forM_ [succ k..pred len] $ \i -> writeArray ar (i, k) =<< (/) <$> readArray ar (i, k) <*> readArray ar (k, k)
         ((.) Just . (.) (second LU) . (,)) <$> freeze pr <*> freeze ar
 
-{-
-
-        ($ (fst $ fst $ bounds m)) . fix $ \f k -> if k > fst (snd $ bounds m) then ((.) Just . (.) (second LU) . (,)) <$> freeze pr <*> freeze ar else do
-            forM_ [fst $ fst $ bounds m..pred k] $ \j -> forM_ [j + 1..fst $ snd $ bounds m] $ \i -> do
-                t <- (.) negate . (*) <$> readArray ar (i, j) <*> readArray ar (j, k)
-                writeArray ar (i, k) =<< (+t) <$> readArray ar (i, k)
-            writeArray ar (k, k) =<< (1/) <$> readArray ar (k, k)
-            forM_ [succ k..fst $ snd $ bounds m] $ \i -> writeArray ar (i, k) =<< (*) <$> readArray ar (i, k) <*> readArray ar (k, k)
-            f $ succ k
--}
-
-    {-
-        r <- foldlM (\acc k -> (\now next -> if abs now < abs next then k else acc) <$> readArray ar (acc, i) <*> readArray ar (k, i)) i [succ i..pred len]
-        maxn <- readArray ar (r, i)
-        if maxn == 0 then return Nothing else do
-            when (r /= i) $ do
-                swapMArray pr r i
-                forM_ [fst (fst $ bounds m)..fst (snd $ bounds m)] $ uncurry (swapMArray ar) . first (i,) . second (r,) . dupe
-            forM_ [fst $ fst $ bounds m..pred i] $ \j -> forM_ [succ j..fst $ snd $ bounds m] $ \k -> do
-                t <- (.) negate . (*) <$> readArray ar (k, j) <*> readArray ar (j, i)
-                writeArray ar (k, i) =<< (+t) <$> readArray ar (k, i)
-            writeArray ar (i, i) =<< (1/) <$> readArray ar (i, i) 
-            forM_ [succ i..fst (snd $ bounds m)] $ \k -> writeArray ar (k, i) =<< (*) <$> readArray ar (k, i) <*> readArray ar (i, i)
-            f $ succ i
--}
-
-
+-- | doolittle
+-- If it is a square and regular matrix,
+-- it returns the exchange information of the row permutation and the Lu-decomposed array (it is grouped in one matrix).
+-- Otherwise it returns Nothing. Use ST Monad with left-looking (doolittle format) algorithm for LU factorization.
 {-# INLINE doolittle #-}
 doolittle :: (Ord e, Fractional e, IArray a Int, IArray a e) => Matrix a Int e -> Maybe (PLU a Int e)
 doolittle m
     | rowLen m > 1 && colLen m > 1 && isSquare m = doolittleST m
     | otherwise = Nothing
 
+-- | doolittle'
+-- It is similar to `doolittle`. Receive list as input.
 {-# INLINE doolittle' #-}
 doolittle' :: (Ord e, Fractional e, IArray a Int, IArray a e) => [[e]] -> Maybe (PLU a Int e)
 doolittle' m
     | length m > 1 && all ((== length m) . length) m = doolittleST $ Matrix $ to2dArray m
     | otherwise = Nothing
-
--- | lu
--- If it is a square and regular matrix, 
--- it returns the exchange information of the row permutation and the LU-decomposed array(It is grouped in one matrix).
--- Otherwise it returns Nothing. Use list for LU factorization.
-{-# INLINE lu #-}
-lu :: (Ord e, Fractional e, IArray a Int, IArray a e) => [[e]] -> Maybe (PLU a Int e)
-lu m
-    | length m > 1 && all ((== length m) . length) m = forward m
-    | otherwise = Nothing
-
-
--- | luST
--- If it is a square and regular matrix, 
--- it returns the exchange information of the row permutation and the LU-decomposed array(It is grouped in one matrix).
--- Otherwise it returns Nothing. Use ST Monad for LU factorization.
-{-# INLINE luST #-}
-luST :: (Ord e, Fractional e, IArray a Int, IArray a e) => Matrix a Int e -> Maybe (PLU a Int e)
-luST m 
-    | rowLen m > 1 && colLen m > 1 && isSquare m = forwardST m
-    | otherwise = Nothing
-
-
--- | luST'
--- It is similar to `luST`. Receive list as input.
-{-# INLINE luST' #-}
-luST' :: (Ord e, Fractional e, IArray a Int, IArray a e) => [[e]] -> Maybe (PLU a Int e)
-luST' = luST . Matrix . to2dArray 
-
+-}
 
 -- | forwards
 -- First solve Lb = Pv about b
@@ -286,7 +268,6 @@ forwards (p, lud@(LU lu')) v
             bj <- readArray vr (p ! j) 
             writeArray vr (p ! j) $ bj - bi * lu' ! (j, i)
         Forwarded <$> freeze vr
-
 
 -- | backwards
 -- Finally solve Ux = b about x
