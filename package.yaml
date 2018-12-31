@@ -1,7 +1,7 @@
 name:                PlayLinearAlgebra
 version:             0.1.0.0
 github:              "falgon/PlayLinearAlgebra"
-license:             BSD3
+license:             MIT
 author:              "roki"
 maintainer:          "falgon53@yahoo.co.jp"
 copyright:           "Copyright (C) 2018 roki"

@@ -1,5 +1,8 @@
 # PlayLinearAlgebra
 
+[![Build Status](https://travis-ci.org/falgon/PlayLinearAlgebra.svg?branch=master)](https://travis-ci.org/falgon/PlayLinearAlgebra)
+[![BSD License](http://img.shields.io/badge/license-BSD-blue.svg?style=flat)](LICENSE)
+
 My playground about linear algebra.
 
 ## Build

@@ -3,9 +3,8 @@ module Main where
 
 import Data.Maybe (maybe, fromJust)
 import Data.Random.Normal (normalIO')
-import System.Environment (getProgName)
+import System.Environment (getProgName, getArgs)
 import System.Exit (exitFailure)
-import System.Environment (getArgs)
 import System.Directory (findExecutable)
 import Graphics.Rendering.Chart.Axis.Types (PlotValue)
 
