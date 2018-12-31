@@ -1,3 +1,3 @@
-# Changelog for PlayApproximateCurve
+# Changelog for PlayLinearAlgebra
 
 ## Unreleased changes

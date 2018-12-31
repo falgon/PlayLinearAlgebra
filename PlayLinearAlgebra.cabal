@@ -1,0 +1,223 @@
+cabal-version: 1.12
+
+-- This file has been generated from package.yaml by hpack version 0.31.0.
+--
+-- see: https://github.com/sol/hpack
+--
+-- hash: 71e632b2bcc821d8d5107de3bf7c14e40d27050fcc94d29504d7ddb4370296e3
+
+name:           PlayLinearAlgebra
+version:        0.1.0.0
+description:    Please see the README on GitHub at <https://github.com/falgon/PlayLinearAlgebra#readme>
+homepage:       https://github.com/falgon/PlayLinearAlgebra#readme
+bug-reports:    https://github.com/falgon/PlayLinearAlgebra/issues
+author:         roki
+maintainer:     falgon53@yahoo.co.jp
+copyright:      Copyright (C) 2018 roki
+license:        BSD3
+license-file:   LICENSE
+build-type:     Simple
+extra-source-files:
+    README.md
+    ChangeLog.md
+
+source-repository head
+  type: git
+  location: https://github.com/falgon/PlayLinearAlgebra
+
+library
+  exposed-modules:
+      Data.Random.Sample
+      Math.Matrix
+      Math.Matrix.Core
+      ML.Approx.LTS
+      ML.Approx.OLS
+      ML.Approx.OLS.ByLU
+      ML.Approx.OLS.ByPinv
+      ML.Approx.Regularization.L2
+      System.IO.Directory
+      System.IO.Dta
+      Utils
+  other-modules:
+      Paths_PlayLinearAlgebra
+  hs-source-dirs:
+      src
+  build-depends:
+      Chart
+    , Chart-cairo
+    , Chart-diagrams
+    , MissingH
+    , array
+    , base >=4.7 && <5
+    , directory
+    , extra
+    , filepath
+    , monad-loops
+    , normaldistribution
+    , paths
+    , process
+    , random
+    , vector
+  default-language: Haskell2010
+
+executable lineqByLU
+  main-is: lineqByLU/Main.hs
+  other-modules:
+      Paths_PlayLinearAlgebra
+  hs-source-dirs:
+      app
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N -O2
+  build-depends:
+      Chart
+    , Chart-cairo
+    , Chart-diagrams
+    , MissingH
+    , PlayLinearAlgebra
+    , array
+    , base >=4.7 && <5
+    , directory
+    , extra
+    , filepath
+    , monad-loops
+    , normaldistribution
+    , paths
+    , process
+    , random
+    , vector
+  default-language: Haskell2010
+
+executable lineqByPseudo
+  main-is: lineqByPseudo/Main.hs
+  other-modules:
+      Paths_PlayLinearAlgebra
+  hs-source-dirs:
+      app
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N -O2
+  build-depends:
+      Chart
+    , Chart-cairo
+    , Chart-diagrams
+    , MissingH
+    , PlayLinearAlgebra
+    , array
+    , base >=4.7 && <5
+    , directory
+    , extra
+    , filepath
+    , monad-loops
+    , normaldistribution
+    , paths
+    , process
+    , random
+    , vector
+  default-language: Haskell2010
+
+executable lineqRegular
+  main-is: lineqRegular/Main.hs
+  other-modules:
+      Paths_PlayLinearAlgebra
+  hs-source-dirs:
+      app
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N -O2
+  build-depends:
+      Chart
+    , Chart-cairo
+    , Chart-diagrams
+    , MissingH
+    , PlayLinearAlgebra
+    , array
+    , base >=4.7 && <5
+    , directory
+    , extra
+    , filepath
+    , monad-loops
+    , normaldistribution
+    , paths
+    , process
+    , random
+    , vector
+  default-language: Haskell2010
+
+executable mkAnimFromDta
+  main-is: mkAnimFromDta/Main.hs
+  other-modules:
+      Paths_PlayLinearAlgebra
+  hs-source-dirs:
+      app
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N -O2
+  build-depends:
+      Chart
+    , Chart-cairo
+    , Chart-diagrams
+    , MissingH
+    , PlayLinearAlgebra
+    , array
+    , base >=4.7 && <5
+    , directory
+    , extra
+    , filepath
+    , monad-loops
+    , normaldistribution
+    , paths
+    , process
+    , random
+    , vector
+  default-language: Haskell2010
+
+executable mkAnimFromSamples
+  main-is: mkAnimFromSamples/Main.hs
+  other-modules:
+      Paths_PlayLinearAlgebra
+  hs-source-dirs:
+      app
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N -O2
+  build-depends:
+      Chart
+    , Chart-cairo
+    , Chart-diagrams
+    , MissingH
+    , PlayLinearAlgebra
+    , array
+    , base >=4.7 && <5
+    , directory
+    , extra
+    , filepath
+    , monad-loops
+    , normaldistribution
+    , paths
+    , process
+    , random
+    , vector
+  default-language: Haskell2010
+
+test-suite PlayLinearAlgebra-test
+  type: exitcode-stdio-1.0
+  main-is: Spec.hs
+  other-modules:
+      Test.Matrix.Inverse
+      Test.Utils
+      Paths_PlayLinearAlgebra
+  hs-source-dirs:
+      test
+  ghc-options: -Wall -O2 -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      Chart
+    , Chart-cairo
+    , Chart-diagrams
+    , HUnit
+    , MissingH
+    , PlayLinearAlgebra
+    , array
+    , base >=4.7 && <5
+    , directory
+    , extra
+    , filepath
+    , linear
+    , matrix
+    , monad-loops
+    , normaldistribution
+    , paths
+    , process
+    , random
+    , vector
+  default-language: Haskell2010

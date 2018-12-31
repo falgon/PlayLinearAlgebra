@@ -28,7 +28,7 @@ import Data.List (foldl1', unfoldr)
 import Data.Foldable (foldlM)
 import Data.Tuple.Extra (first, second, dupe, (***))
 import Data.Maybe (catMaybes)
-import Control.Monad (forM, forM_, when)
+import Control.Monad (forM_, when)
 import Control.Monad.Fix (fix)
 import Control.Monad.ST (ST, runST)
 
