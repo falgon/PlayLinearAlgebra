@@ -63,11 +63,11 @@ When executed as above, the following figure will be output.
 ### `mkAnimFromSamples`
 
 `mkAnimFromSamples` outputs a gif animation that can see the fitting transitions for
-<img src="https://latex.codecogs.com/gif.latex?\inline \sin(x_i)+e" />
+<img src="https://latex.codecogs.com/gif.latex?\inline&space;¥sin(x_i)&plus;e" />
 with a degree specified from 1.
-Note that <img src="https://latex.codecogs.com/gif.latex?\inline e" /> 
+Note that <img src="https://latex.codecogs.com/gif.latex?\inline&space;e" /> 
 is noise that follows the normal distribution of 
-<img src="https://latex.codecogs.com/gif.latex?\inline N(0,0.2)" />.
+<img src="https://latex.codecogs.com/gif.latex?\inline&space;N(0,0.2)" />.
 
 ```sh
 $ stack exec mkAnimFromSamples
