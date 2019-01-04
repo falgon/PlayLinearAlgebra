@@ -14,7 +14,13 @@ $ stack build
 ## Apps
 
 Includes a least squares plotter.
-It works by solving by LU decomposition and solving by pseudo inverse matrix respectively.
+It works by solving by LU decomposition and solving by pseudo (Moore-Penrose) inverse matrix respectively.
+The method of least squares is as follows.
+
+Let <img src="https://latex.codecogs.com/gif.latex?\inline&space;\boldsymbol{y}=X\beta&plus;\boldsymbol{u}" title="\boldsymbol{y}=X\beta+\boldsymbol{u}" /> be a multiple linear regression model with <img src="https://latex.codecogs.com/gif.latex?\inline&space;p" title="p" /> independent variables where <img src="https://latex.codecogs.com/gif.latex?\inline&space;X\in\mathbb{R}^{m\times&space;n},&space;\boldsymbol{\beta}\in\mathbb{R}^{n\times&space;1},\boldsymbol{y}\in\mathbb{R}^{m\times&space;1}" title="X\in\mathbb{R}^{m\times n}, \boldsymbol{\beta}\in\mathbb{R}^{n\times 1},\boldsymbol{y}\in\mathbb{R}^{m\times 1}" />.
+<img src="https://latex.codecogs.com/gif.latex?\inline&space;\boldsymbol{u}" title="\boldsymbol{u}" /> is a vector <img src="https://latex.codecogs.com/gif.latex?\inline&space;\boldsymbol{u}=(u_1,u_2,\cdots,u_m)^T\in\mathbb{R}^{m\times&space;1}" title="\boldsymbol{u}=(u_1,u_2,\cdots,u_m)^T\in\mathbb{R}^{m\times 1}" /> of the probability error according to i.i.d and <img src="https://latex.codecogs.com/gif.latex?\inline&space;\mathrm{N}(0,\sigma^2)" title="\mathrm{N}(0,\sigma^2)" />. In this case, the least squares method is defined by the following equation.
+
+<img src="https://latex.codecogs.com/gif.latex?{\rm&space;OLS}(X,\boldsymbol{y}):=\mathrm{arg}\min_{\boldsymbol{\beta}}\sum_{i=1}^mr(\boldsymbol{\beta})^2_i" title="{\rm OLS}(X',\boldsymbol{y}):=\mathrm{arg}\min_{\boldsymbol{\beta}}\sum_{i=1}^mr(\boldsymbol{\beta})^2_i" />
 
 ### `lineqByLU`,`lineqByPseudo`
 
@@ -33,6 +39,12 @@ The same result can be obtained by executing lineqByPseudo in the same way.
 ### `lineqRegular`
 
 `lineqRegular` performs L2 regularization according to arbitrary parameters.
+
+<img src="https://latex.codecogs.com/gif.latex?\epsilon(\boldsymbol{a})_\lambda=\sum^m_{i=1}(y_i-f_n(x_i))^2&plus;\lambda&space;R(\boldsymbol{a})" title="\epsilon(\boldsymbol{a})_\lambda=\sum^m_{i=1}(y_i-f_n(x_i))^2+\lambda R(\boldsymbol{a})" />
+
+When <img src="https://latex.codecogs.com/gif.latex?\inline&space;R(\boldsymbol{a})" title="R(\boldsymbol{a})" /> is assumed to be the <img src="https://latex.codecogs.com/gif.latex?\inline&space;L^2" title="L^2" /> norm
+
+<img src="https://latex.codecogs.com/gif.latex?\begin{array}{ccc}&space;\epsilon(\boldsymbol{a})_\lambda&=&\sum^m_{i=1}(y_i-f_n(x_i))^2&plus;\lambda\sum^n_{j=1}a^2_j&space;\\&space;&=&(\boldsymbol{y}-X\boldsymbol{a})^T(\boldsymbol{y}-X\boldsymbol{a})&plus;\lambda\boldsymbol{a}^T\boldsymbol{a}&space;\end{array}" title="\begin{array}{ccc} \epsilon(\boldsymbol{a})_\lambda&=&\sum^m_{i=1}(y_i-f_n(x_i))^2+\lambda\sum^n_{j=1}a^2_j \\ &=&(\boldsymbol{y}-X\boldsymbol{a})^T(\boldsymbol{y}-X\boldsymbol{a})+\lambda\boldsymbol{a}^T\boldsymbol{a} \end{array}" />
 
 ```sh
 $ stack exec lineqRegular
@@ -78,3 +90,8 @@ $ stack exec mkAnimFromSamples -- out.gif 8
 When executed as above, the following figure will be output.
 
 ![least squares to sin function](./assets/mkAnimFromSamplesout.gif)
+
+
+### Related article
+
+There is a [related article (WIP)](https://falgon.github.io/roki.log/posts/2019/%201%E6%9C%88/03/leastSquares/) on my blog (Japanese).
