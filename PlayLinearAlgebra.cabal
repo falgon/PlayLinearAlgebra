@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 71e632b2bcc821d8d5107de3bf7c14e40d27050fcc94d29504d7ddb4370296e3
+-- hash: cbc9fc55f49e605386ef3dabad63f782c77749af9a8be96058c57662a3fa01e8
 
 name:           PlayLinearAlgebra
 version:        0.1.0.0
@@ -14,7 +14,7 @@ bug-reports:    https://github.com/falgon/PlayLinearAlgebra/issues
 author:         roki
 maintainer:     falgon53@yahoo.co.jp
 copyright:      Copyright (C) 2018 roki
-license:        BSD3
+license:        MIT
 license-file:   LICENSE
 build-type:     Simple
 extra-source-files:

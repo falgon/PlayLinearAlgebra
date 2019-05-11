@@ -1,4 +1,4 @@
-# PlayLinearAlgebra
+﻿# PlayLinearAlgebra
 
 [![Build Status](https://travis-ci.org/falgon/PlayLinearAlgebra.svg?branch=master)](https://travis-ci.org/falgon/PlayLinearAlgebra)
 [![BSD License](http://img.shields.io/badge/license-BSD-blue.svg?style=flat)](LICENSE)
@@ -78,7 +78,7 @@ When executed as above, the following figure will be output.
 ### `mkAnimFromSamples`
 
 `mkAnimFromSamples` outputs a gif animation that can see the fitting transitions for
-<img src="https://latex.codecogs.com/gif.latex?\inline&space;¥sin(x_i)&plus;e" />
+<img src="https://latex.codecogs.com/gif.latex?\inline&space;促sin(x_i)&plus;e" />
 with a degree specified from 1.
 Note that <img src="https://latex.codecogs.com/gif.latex?\inline&space;e" /> 
 is noise that follows the normal distribution of 
